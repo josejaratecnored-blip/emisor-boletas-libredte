@@ -23,6 +23,7 @@ if (($argv[1] ?? '') === '--hijo') {
 }
 
 $db = db();
+$db->exec("DELETE FROM notas_credito WHERE ambiente = 'test'");
 $db->exec("DELETE FROM boletas WHERE ambiente = 'test'");
 $db->exec("DELETE FROM cafs WHERE ambiente = 'test'");
 $db->exec("INSERT INTO cafs (ambiente, tipo_dte, folio_desde, folio_hasta, siguiente_folio, fecha_autorizacion, archivo)
@@ -65,5 +66,6 @@ if (count($folios) !== 200) {
     echo 'Salida con errores:', PHP_EOL, substr($salida, 0, 1000), PHP_EOL;
 }
 
+$db->exec("DELETE FROM notas_credito WHERE ambiente = 'test'");
 $db->exec("DELETE FROM boletas WHERE ambiente = 'test'");
 $db->exec("DELETE FROM cafs WHERE ambiente = 'test'");

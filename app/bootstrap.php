@@ -55,16 +55,29 @@ function db(): PDO
 
 function emisor(string $ambiente): App\Emisor
 {
+    return new App\Emisor(...dependencias($ambiente));
+}
+
+function notasCredito(string $ambiente): App\NotasCredito
+{
+    return new App\NotasCredito(...dependencias($ambiente));
+}
+
+/**
+ * Argumentos comunes de Emisor y NotasCredito.
+ */
+function dependencias(string $ambiente): array
+{
     $secrets = __DIR__ . '/var/secrets';
 
-    return new App\Emisor(
+    return [
         db(),
         libredte()->getPackageRegistry()->getBillingPackage(),
         (new Derafu\Certificate\Service\CertificateLoader())->loadFromFile(glob("$secrets/*.pfx")[0], env('CERT_PASSWORD')),
         require __DIR__ . '/config/empresa.php',
         $ambiente,
         $secrets,
-    );
+    ];
 }
 
 function libredte(): Application

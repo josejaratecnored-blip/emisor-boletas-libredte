@@ -15,8 +15,8 @@ $path = rtrim((string) parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/') ?:
 try {
     if (str_starts_with($path, '/api/')) {
         api($method, $path);
-    } elseif (preg_match('#^/pdf/(\d+)/([a-f0-9]{32})$#', $path, $m)) {
-        pdf((int) $m[1], $m[2]);
+    } elseif (preg_match('#^/pdf/(nc/)?(\d+)/([a-f0-9]{32})$#', $path, $m)) {
+        pdf($m[1] === 'nc/' ? 'nc' : 'boleta', (int) $m[2], $m[3]);
     } else {
         panel($method, $path);
     }
@@ -38,30 +38,39 @@ function e(mixed $valor): string
     return htmlspecialchars((string) $valor, ENT_QUOTES, 'UTF-8');
 }
 
-function urlPdf(int $boletaId): string
+/**
+ * @param string $tipo 'boleta' o 'nc' (nota de crédito).
+ */
+function urlPdf(int $id, string $tipo = 'boleta'): string
 {
-    return 'https://' . $_SERVER['HTTP_HOST'] . "/pdf/$boletaId/" . firmaPdf($boletaId);
+    $ruta = $tipo === 'nc' ? "/pdf/nc/$id/" : "/pdf/$id/";
+
+    return 'https://' . $_SERVER['HTTP_HOST'] . $ruta . firmaPdf($id, $tipo);
 }
 
-function firmaPdf(int $boletaId): string
+function firmaPdf(int $id, string $tipo): string
 {
-    return substr(hash_hmac('sha256', ambiente() . ":pdf:$boletaId", (string) env('APP_KEY')), 0, 32);
+    // Las boletas conservan el formato original para no invalidar enlaces ya entregados.
+    $mensaje = ambiente() . ($tipo === 'nc' ? ":pdf-nc:$id" : ":pdf:$id");
+
+    return substr(hash_hmac('sha256', $mensaje, (string) env('APP_KEY')), 0, 32);
 }
 
-function pdf(int $boletaId, string $firma): never
+function pdf(string $tipo, int $id, string $firma): never
 {
-    if (!hash_equals(firmaPdf($boletaId), $firma)) {
+    if (!hash_equals(firmaPdf($id, $tipo), $firma)) {
         http_response_code(404);
         exit('No encontrado');
     }
     try {
-        $pdf = emisor(ambiente())->pdf($boletaId);
+        $pdf = $tipo === 'nc' ? notasCredito(ambiente())->pdf($id) : emisor(ambiente())->pdf($id);
     } catch (RuntimeException) {
         http_response_code(404);
         exit('No encontrado');
     }
+    $nombre = $tipo === 'nc' ? "nota-credito-$id.pdf" : "boleta-$id.pdf";
     header('Content-Type: application/pdf');
-    header("Content-Disposition: inline; filename=\"boleta-$boletaId.pdf\"");
+    header("Content-Disposition: inline; filename=\"$nombre\"");
     echo $pdf;
     exit;
 }
@@ -86,6 +95,20 @@ function boletaJson(array $b): array
         'monto_total' => $b['monto_total'] === null ? null : (int) $b['monto_total'],
         'track_id' => $b['track_id'] === null ? null : (int) $b['track_id'],
         'pdf_url' => $b['xml'] === null ? null : urlPdf((int) $b['id']),
+    ];
+}
+
+function notaCreditoJson(array $nc): array
+{
+    return [
+        'id' => (int) $nc['id'],
+        'folio' => (int) $nc['folio'],
+        'boleta_id' => (int) $nc['boleta_id'],
+        'estado' => $nc['estado'],
+        'fecha_emision' => $nc['fecha_emision'],
+        'monto_total' => $nc['monto_total'] === null ? null : (int) $nc['monto_total'],
+        'track_id' => $nc['track_id'] === null ? null : (int) $nc['track_id'],
+        'pdf_url' => $nc['xml'] === null ? null : urlPdf((int) $nc['id'], 'nc'),
     ];
 }
 
@@ -115,11 +138,30 @@ function api(string $method, string $path): never
             json(200, boletaJson($boleta));
         }
 
+        if ($method === 'POST' && preg_match('#^/api/boletas/(\d+)/anular$#', $path, $m)) {
+            json(201, notaCreditoJson(notasCredito(ambiente())->anular((int) $m[1])));
+        }
+
+        if ($method === 'GET' && preg_match('#^/api/notas-credito/(\d+)$#', $path, $m)) {
+            $notas = notasCredito(ambiente());
+            $nc = $notas->buscar((int) $m[1]);
+            if ($nc['estado'] === 'enviada') {
+                $nc = $notas->actualizarEstado((int) $m[1]);
+            }
+            json(200, notaCreditoJson($nc));
+        }
+
         json(404, ['error' => 'Ruta no encontrada']);
     } catch (InvalidArgumentException $e) {
         json(422, ['error' => $e->getMessage()]);
     } catch (RuntimeException $e) {
-        json(str_starts_with($e->getMessage(), 'No existe') ? 404 : 400, ['error' => $e->getMessage()]);
+        $status = match (true) {
+            str_starts_with($e->getMessage(), 'No existe') => 404,
+            str_contains($e->getMessage(), 'ya tiene una nota de crédito'),
+            str_starts_with($e->getMessage(), 'Solo se anulan') => 409,
+            default => 400,
+        };
+        json($status, ['error' => $e->getMessage()]);
     }
 }
 
@@ -185,6 +227,27 @@ function panel(string $method, string $path): never
             $emisor = emisor(ambiente());
             $boleta = $m[2] === 'estado' ? $emisor->actualizarEstado((int) $m[1]) : $emisor->reenviar((int) $m[1]);
             flash("Folio {$boleta['folio']}: {$boleta['estado']}.");
+        } catch (RuntimeException $e) {
+            flash($e->getMessage(), 'error');
+        }
+        redirigir('/');
+    }
+
+    if ($method === 'POST' && preg_match('#^/boletas/(\d+)/anular$#', $path, $m)) {
+        try {
+            $nc = notasCredito(ambiente())->anular((int) $m[1]);
+            flash("Nota de crédito folio {$nc['folio']} emitida (estado: {$nc['estado']}).");
+        } catch (RuntimeException $e) {
+            flash($e->getMessage(), 'error');
+        }
+        redirigir('/');
+    }
+
+    if ($method === 'POST' && preg_match('#^/notas-credito/(\d+)/(estado|reenviar)$#', $path, $m)) {
+        try {
+            $notas = notasCredito(ambiente());
+            $nc = $m[2] === 'estado' ? $notas->actualizarEstado((int) $m[1]) : $notas->reenviar((int) $m[1]);
+            flash("Nota de crédito folio {$nc['folio']}: {$nc['estado']}.");
         } catch (RuntimeException $e) {
             flash($e->getMessage(), 'error');
         }

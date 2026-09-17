@@ -42,3 +42,26 @@ CREATE TABLE IF NOT EXISTS boletas (
     KEY boletas_track (track_id),
     CONSTRAINT boletas_caf FOREIGN KEY (caf_id) REFERENCES cafs (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Notas de crédito que anulan una boleta. boleta_id único: una sola por boleta.
+CREATE TABLE IF NOT EXISTS notas_credito (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ambiente ENUM('cert', 'prod', 'test') NOT NULL,
+    tipo_dte SMALLINT UNSIGNED NOT NULL,
+    folio INT UNSIGNED NOT NULL,
+    caf_id INT UNSIGNED NOT NULL,
+    boleta_id INT UNSIGNED NOT NULL,
+    estado ENUM('reservada', 'emitida', 'enviada', 'aceptada', 'reparos', 'rechazada') NOT NULL DEFAULT 'reservada',
+    fecha_emision DATE NULL,
+    monto_total INT UNSIGNED NULL,
+    xml MEDIUMBLOB NULL,
+    track_id BIGINT UNSIGNED NULL,
+    respuesta_sii JSON NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY notas_credito_folio (ambiente, tipo_dte, folio),
+    UNIQUE KEY notas_credito_boleta (boleta_id),
+    KEY notas_credito_track (track_id),
+    CONSTRAINT notas_credito_caf FOREIGN KEY (caf_id) REFERENCES cafs (id),
+    CONSTRAINT notas_credito_boleta FOREIGN KEY (boleta_id) REFERENCES boletas (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

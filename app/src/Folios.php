@@ -12,6 +12,8 @@ use RuntimeException;
  */
 final class Folios
 {
+    private const TABLAS = [39 => 'boletas', 61 => 'notas_credito'];
+
     public function __construct(private readonly PDO $db)
     {
     }
@@ -50,12 +52,16 @@ final class Folios
     }
 
     /**
-     * Reserva el siguiente folio disponible. Usa el CAF más antiguo con folios.
+     * Reserva el siguiente folio disponible creando la fila del documento en
+     * su tabla. Usa el CAF más antiguo con folios.
      *
-     * @return array{boleta_id:int, folio:int, caf_id:int, archivo:string}
+     * @param array $datos Columnas adicionales de la fila (p. ej. boleta_id).
+     * @return array{id:int, folio:int, caf_id:int, archivo:string}
      */
-    public function reservar(string $ambiente, int $tipoDte): array
+    public function reservar(string $ambiente, int $tipoDte, array $datos = []): array
     {
+        $tabla = self::TABLAS[$tipoDte] ?? throw new RuntimeException("Tipo de DTE no soportado: $tipoDte");
+
         $this->db->beginTransaction();
         try {
             $stmt = $this->db->prepare(
@@ -72,9 +78,14 @@ final class Folios
             $folio = (int) $caf['siguiente_folio'];
             $this->db->prepare('UPDATE cafs SET siguiente_folio = siguiente_folio + 1 WHERE id = ?')
                 ->execute([$caf['id']]);
-            $this->db->prepare('INSERT INTO boletas (ambiente, tipo_dte, folio, caf_id) VALUES (?, ?, ?, ?)')
-                ->execute([$ambiente, $tipoDte, $folio, $caf['id']]);
-            $boletaId = (int) $this->db->lastInsertId();
+            $fila = ['ambiente' => $ambiente, 'tipo_dte' => $tipoDte, 'folio' => $folio, 'caf_id' => $caf['id']] + $datos;
+            $this->db->prepare(sprintf(
+                'INSERT INTO %s (%s) VALUES (%s)',
+                $tabla,
+                implode(', ', array_keys($fila)),
+                implode(', ', array_fill(0, count($fila), '?'))
+            ))->execute(array_values($fila));
+            $id = (int) $this->db->lastInsertId();
 
             $this->db->commit();
         } catch (\Throwable $e) {
@@ -82,6 +93,6 @@ final class Folios
             throw $e;
         }
 
-        return ['boleta_id' => $boletaId, 'folio' => $folio, 'caf_id' => (int) $caf['id'], 'archivo' => $caf['archivo']];
+        return ['id' => $id, 'folio' => $folio, 'caf_id' => (int) $caf['id'], 'archivo' => $caf['archivo']];
     }
 }

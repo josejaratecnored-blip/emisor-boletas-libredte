@@ -15,6 +15,8 @@ Está en uso en producción y fue certificado en el ambiente de pruebas del SII.
 - Timbre (CAF), firma, armado del sobre `EnvioBOLETA`, **envío por la API REST de boletas del SII** y
   consulta de estado.
 - **PDF** de cada boleta con enlace firmado (HMAC) para compartir con el cliente.
+- **Notas de crédito (61)** que anulan totalmente una boleta aceptada (una por boleta), enviadas por el
+  canal DTE del SII (`DTEUpload`), con reenvío, estado y PDF.
 
 ## Requisitos
 
@@ -36,11 +38,15 @@ Está en uso en producción y fue certificado en el ambiente de pruebas del SII.
     ├── config/
     │   ├── empresa.example.php (copiar a empresa.php con los datos del emisor)
     │   ├── services.yaml     (configuración de LibreDTE para esta app)
-    │   └── schema.sql        (tablas usuarios, cafs, boletas)
+    │   └── schema.sql        (tablas usuarios, cafs, boletas, notas_credito)
     ├── src/
-    │   ├── Emisor.php        (emitir, reenviar, actualizarEstado, listar, pdf)
+    │   ├── Emisor.php        (boletas: emitir, reenviar, actualizarEstado, listar, pdf)
+    │   ├── NotasCredito.php  (anular boleta, reenviar, actualizarEstado, pdf)
     │   ├── Folios.php        (registrar CAF, reservar folio con bloqueo)
+    │   ├── Sobre.php         (sobre EnvioBOLETA / EnvioDTE firmado)
+    │   ├── SiiSemilla.php    (firma de la semilla para el token del SII)
     │   ├── SiiBoletaClient.php (API REST de boletas del SII: token, envío, estado)
+    │   ├── SiiDteClient.php  (canal DTE del SII: token SOAP, DTEUpload, QueryEstUp)
     │   └── LibreDte/         (proveedores de emisor/receptor que no inventan datos)
     ├── views/                (login y panel)
     ├── scripts/              (utilidades de línea de comandos)
@@ -99,7 +105,18 @@ Autenticación: `Authorization: Bearer <API_TOKEN>`.
 
 **Consultar** — `GET /api/boletas/{id}`: misma respuesta; si está `enviada`, consulta al SII.
 
-Errores: `401` token inválido · `422` datos inválidos · `404` no existe · `400` otros (p. ej. sin folios).
+**Anular (nota de crédito)** — `POST /api/boletas/{id}/anular`, sin cuerpo. Solo boletas `aceptada` o
+`reparos`, una vez. Respuesta `201`:
+
+```json
+{"id": 1, "folio": 101, "boleta_id": 1, "estado": "enviada", "fecha_emision": "2026-09-17",
+ "monto_total": 4990, "track_id": 123456789, "pdf_url": "https://…/pdf/nc/1/…"}
+```
+
+**Consultar nota de crédito** — `GET /api/notas-credito/{id}`: si está `enviada`, consulta al SII.
+
+Errores: `401` token inválido · `422` datos inválidos · `404` no existe ·
+`409` boleta no aceptada o ya anulada · `400` otros (p. ej. sin folios).
 
 ## Scripts
 
@@ -113,6 +130,8 @@ Errores: `401` token inválido · `422` datos inválidos · `404` no existe · `
 | `prueba_folios_concurrencia.php` | 4 procesos reservando folios en paralelo, verifica que no haya duplicados |
 | `prueba_emisor_cert.php` | Emite una boleta en certificación (gasta folio) |
 | `prueba_reenviar_cert.php` | Simula SII caído, reenvía y verifica (gasta folio) |
+| `prueba_nc_concurrencia.php` | Sin SII: 4 procesos anulan la misma boleta; verifica que solo se emita 1 nota de crédito |
+| `prueba_anular_cert.php` | Anula una boleta de certificación (gasta folio 61) |
 
 ## Notas técnicas (no obvias)
 
@@ -134,7 +153,12 @@ Errores: `401` token inválido · `422` datos inválidos · `404` no existe · `
 8. **Carátula de boletas**: `RutReceptor` es el SII (60803000-K). Receptor genérico: 66666666-6 "Cliente Internet".
 9. **El Resumen de Ventas Diarias (RVD) ya no es obligatorio** desde el 01-08-2022
    ([Res. Ex. SII N° 53 de 2022](https://www.sii.cl/normativa_legislacion/resoluciones/2022/reso53.pdf)).
-10. Para saber qué folios ya recibió el SII se puede usar
+10. **Notas de crédito sobre boletas**: se envían por el canal DTE (`DTEUpload`, sobre `EnvioDTE`), no por la
+    API de boletas. Los jobs de LibreDTE para ese canal usan la misma firma rechazada y un cliente SOAP que no
+    carga el WSDL, por eso `SiiDteClient` hace SOAP directo. Se usa `MntBruto=1` para que los totales coincidan
+    con la boleta. El SII acepta el receptor genérico 66666666-6. En certificación maullin puede autorizar
+    solo 1 folio 61 por solicitud.
+11. Para saber qué folios ya recibió el SII se puede usar
     `GET /boleta.electronica/{rut}-{dv}-39-{folio}/estado` con datos genéricos: responde `DNK` si fue recibido
     y `FAU` si no.
 

@@ -8,9 +8,6 @@ use Derafu\Certificate\Contract\CertificateInterface;
 use InvalidArgumentException;
 use libredte\lib\Core\Package\Billing\Contract\BillingPackageInterface;
 use libredte\lib\Core\Package\Billing\Component\Document\Support\DocumentBag;
-use libredte\lib\Core\Package\Billing\Component\Document\Support\DocumentEnvelope;
-use libredte\lib\Core\Package\Billing\Component\TradingParties\Factory\EmisorFactory;
-use libredte\lib\Core\Package\Billing\Component\TradingParties\Factory\ReceptorFactory;
 use PDO;
 use RuntimeException;
 
@@ -53,17 +50,17 @@ final class Emisor
             $datos['IdDoc']['FchEmis'],
             $datos['Totales']['MntTotal'],
             $bag->getDocument()->saveXml(),
-            $reserva['boleta_id'],
+            $reserva['id'],
         ]);
 
         try {
-            $this->enviar($reserva['boleta_id'], $bag);
+            $this->enviar($reserva['id'], $bag);
         } catch (RuntimeException $e) {
             // La boleta queda 'emitida' con su XML para reenviarla después.
-            error_log("Boleta {$reserva['boleta_id']} no enviada al SII: {$e->getMessage()}");
+            error_log("Boleta {$reserva['id']} no enviada al SII: {$e->getMessage()}");
         }
 
-        return $this->buscar($reserva['boleta_id']);
+        return $this->buscar($reserva['id']);
     }
 
     /**
@@ -113,8 +110,10 @@ final class Emisor
     public function listar(int $limite = 50): array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, folio, estado, fecha_emision, monto_total, track_id, xml IS NOT NULL AS tiene_xml
-             FROM boletas WHERE ambiente = ? AND tipo_dte = ? ORDER BY id DESC LIMIT ' . max(1, $limite)
+            'SELECT b.id, b.folio, b.estado, b.fecha_emision, b.monto_total, b.track_id, b.xml IS NOT NULL AS tiene_xml,
+                    nc.id AS nc_id, nc.folio AS nc_folio, nc.estado AS nc_estado, nc.xml IS NOT NULL AS nc_tiene_xml
+             FROM boletas b LEFT JOIN notas_credito nc ON nc.boleta_id = b.id
+             WHERE b.ambiente = ? AND b.tipo_dte = ? ORDER BY b.id DESC LIMIT ' . max(1, $limite)
         );
         $stmt->execute([$this->ambiente, self::TIPO_DTE]);
 
@@ -201,23 +200,8 @@ final class Emisor
 
     private function enviar(int $boletaId, DocumentBag $bag): void
     {
-        $resolucion = $this->empresa['resolucion'][$this->ambiente];
-
-        $envelope = (new DocumentEnvelope())
-            ->addDocument($bag)
-            ->setCertificate($this->certificate)
-            ->setEmisor((new EmisorFactory())->create([
-                'rut' => $this->empresa['rut'],
-                'razon_social' => $this->empresa['razon_social'],
-                'autorizacion_dte' => [
-                    'fecha_resolucion' => $resolucion['fecha'],
-                    'numero_resolucion' => $resolucion['numero'],
-                ],
-            ]))
-            ->setReceptor((new ReceptorFactory())->create(['rut' => '60803000-K'])); // SII
-        $this->billing->getDocumentComponent()->getDispatcherWorker()->normalize($envelope);
-
-        $respuesta = $this->sii()->enviar($envelope->getXmlDocument()->saveXml(), $this->empresa['rut']);
+        $xml = Sobre::armar($this->billing, $bag, $this->certificate, $this->empresa, $this->ambiente);
+        $respuesta = $this->sii()->enviar($xml, $this->empresa['rut']);
 
         $this->db->prepare("UPDATE boletas SET estado = 'enviada', track_id = ?, respuesta_sii = ? WHERE id = ?")
             ->execute([$respuesta['trackid'], json_encode($respuesta, JSON_UNESCAPED_UNICODE), $boletaId]);
