@@ -32,6 +32,9 @@
   .fila-item { display:grid; grid-template-columns:1fr 90px 120px 32px; gap:8px; margin-bottom:8px; }
   .acciones form { display:inline; }
   .scroll { overflow-x:auto; }
+  .pestanas { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--line); }
+  .pestanas a { padding:8px 14px; color:var(--muted); text-decoration:none; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .pestanas a[aria-current="page"] { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
   @media (max-width:560px) { .fila-item { grid-template-columns:1fr 70px 90px 32px; } }
 </style>
 </head>

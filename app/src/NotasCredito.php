@@ -114,6 +114,19 @@ final class NotasCredito
         return $this->buscar($id);
     }
 
+    public function listar(int $limite = 50): array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT nc.id, nc.folio, nc.estado, nc.fecha_emision, nc.monto_total, nc.track_id,
+                    nc.xml IS NOT NULL AS tiene_xml, b.folio AS boleta_folio
+             FROM notas_credito nc JOIN boletas b ON b.id = nc.boleta_id
+             WHERE nc.ambiente = ? ORDER BY nc.id DESC LIMIT ' . max(1, $limite)
+        );
+        $stmt->execute([$this->ambiente]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function pdf(int $id): string
     {
         $nc = $this->buscar($id);

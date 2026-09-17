@@ -120,6 +120,21 @@ final class Emisor
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Boleta por folio, con su nota de crédito si la tiene. Null si no existe.
+     */
+    public function buscarPorFolio(int $folio): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT b.id, b.folio, b.estado, b.fecha_emision, b.monto_total, nc.id AS nc_id, nc.folio AS nc_folio
+             FROM boletas b LEFT JOIN notas_credito nc ON nc.boleta_id = b.id
+             WHERE b.ambiente = ? AND b.tipo_dte = ? AND b.folio = ?'
+        );
+        $stmt->execute([$this->ambiente, self::TIPO_DTE, $folio]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
     public function pdf(int $boletaId): string
     {
         $boleta = $this->buscar($boletaId);

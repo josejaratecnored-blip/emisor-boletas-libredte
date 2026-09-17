@@ -240,7 +240,7 @@ function panel(string $method, string $path): never
         } catch (RuntimeException $e) {
             flash($e->getMessage(), 'error');
         }
-        redirigir('/');
+        redirigir('/notas-credito');
     }
 
     if ($method === 'POST' && preg_match('#^/notas-credito/(\d+)/(estado|reenviar)$#', $path, $m)) {
@@ -251,13 +251,20 @@ function panel(string $method, string $path): never
         } catch (RuntimeException $e) {
             flash($e->getMessage(), 'error');
         }
-        redirigir('/');
+        redirigir('/notas-credito');
     }
 
     if ($method === 'GET' && $path === '/') {
-        $flash = $_SESSION['flash'] ?? null;
-        unset($_SESSION['flash']);
-        vista('panel', ['boletas' => emisor(ambiente())->listar(), 'flash' => $flash]);
+        vista('panel', ['boletas' => emisor(ambiente())->listar()]);
+    }
+
+    if ($method === 'GET' && $path === '/notas-credito') {
+        $folio = filter_var($_GET['folio'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+        vista('notas_credito', [
+            'notas' => notasCredito(ambiente())->listar(),
+            'folioBuscado' => $folio,
+            'boleta' => $folio === null ? null : emisor(ambiente())->buscarPorFolio($folio),
+        ]);
     }
 
     http_response_code(404);
@@ -278,6 +285,8 @@ function redirigir(string $url): never
 function vista(string $nombre, array $datos): never
 {
     extract($datos);
+    $flash = $_SESSION['flash'] ?? null;
+    unset($_SESSION['flash']);
     $csrf = $_SESSION['csrf'];
     $usuario = $_SESSION['usuario'] ?? null;
     header('Content-Type: text/html; charset=utf-8');

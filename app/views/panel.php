@@ -1,12 +1,4 @@
-<?php require __DIR__ . '/layout_inicio.php'; ?>
-<header>
-  <h1>Emisor de boletas</h1>
-  <span class="badge <?= ambiente() === 'cert' ? 'cert' : '' ?>"><?= ambiente() === 'cert' ? 'Certificación (pruebas)' : 'Producción' ?></span>
-  <span style="color:var(--muted)"><?= e($usuario['nombre']) ?></span>
-  <form method="post" action="/logout"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><button class="chico">Salir</button></form>
-</header>
-<main>
-  <?php if ($flash): ?><div class="flash <?= e($flash['tipo']) ?>"><?= e($flash['mensaje']) ?></div><?php endif; ?>
+<?php $pestana = 'boletas'; require __DIR__ . '/encabezado.php'; ?>
 
   <div class="card">
     <h2>Nueva boleta</h2>
@@ -49,19 +41,9 @@
               <form method="post" action="/boletas/<?= (int) $b['id'] ?>/reenviar"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><button class="chico">Reenviar al SII</button></form>
             <?php endif; ?>
           </td>
-          <td class="acciones">
+          <td>
             <?php if ($b['nc_id'] !== null): ?>
-              <span class="<?= e($b['nc_estado']) ?>">N° <?= e($b['nc_folio']) ?> · <?= e($b['nc_estado']) ?></span>
-              <?php if ($b['nc_tiene_xml']): ?><a class="btn chico" href="<?= e(urlPdf((int) $b['nc_id'], 'nc')) ?>" target="_blank" rel="noopener">PDF</a><?php endif; ?>
-              <?php if ($b['nc_estado'] === 'enviada'): ?>
-                <form method="post" action="/notas-credito/<?= (int) $b['nc_id'] ?>/estado"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><button class="chico">Actualizar estado</button></form>
-              <?php elseif ($b['nc_estado'] === 'emitida'): ?>
-                <form method="post" action="/notas-credito/<?= (int) $b['nc_id'] ?>/reenviar"><input type="hidden" name="csrf" value="<?= e($csrf) ?>"><button class="chico">Reenviar al SII</button></form>
-              <?php endif; ?>
-            <?php elseif (in_array($b['estado'], ['aceptada', 'reparos'], true)): ?>
-              <form method="post" action="/boletas/<?= (int) $b['id'] ?>/anular" class="anular" data-folio="<?= e($b['folio']) ?>" data-total="<?= e(number_format((int) $b['monto_total'], 0, ',', '.')) ?>">
-                <input type="hidden" name="csrf" value="<?= e($csrf) ?>"><button class="chico">Anular</button>
-              </form>
+              <a href="/notas-credito">Anulada · NC N° <?= e($b['nc_folio']) ?></a>
             <?php else: ?>—<?php endif; ?>
           </td>
         </tr>
@@ -92,11 +74,6 @@
     if (ev.target.classList.contains('quitar') && items.children.length > 1) { ev.target.parentElement.remove(); recalcular(); }
   });
   items.addEventListener('input', recalcular);
-  document.querySelectorAll('form.anular').forEach(f => f.addEventListener('submit', ev => {
-    const aviso = `¿Anular la boleta folio ${f.dataset.folio} por $${f.dataset.total}?\n\nSe emitirá una nota de crédito ante el SII. No se puede deshacer.`;
-    if (!confirm(aviso)) { ev.preventDefault(); return; }
-    f.querySelector('button').disabled = true;
-  }));
   document.getElementById('form-boleta').addEventListener('submit', ev => {
     const boton = ev.target.querySelector('button[type=submit]');
     boton.disabled = true; boton.textContent = 'Emitiendo…';

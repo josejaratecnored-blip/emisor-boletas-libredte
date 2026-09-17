@@ -9,7 +9,8 @@ Está en uso en producción y fue certificado en el ambiente de pruebas del SII.
 
 ## Funcionalidades
 
-- **Panel web** con usuarios para emitir boletas, ver su estado en el SII, reenviar y abrir el PDF.
+- **Panel web** con usuarios y dos vistas: **Boletas** (emitir, estado en el SII, reenviar, PDF) y
+  **Notas de crédito** (anular una boleta por su folio, estado, reenviar, PDF).
 - **API JSON** con token para que otra plataforma emita boletas.
 - **Control de folios** en MySQL sin duplicados, aun con emisiones simultáneas.
 - Timbre (CAF), firma, armado del sobre `EnvioBOLETA`, **envío por la API REST de boletas del SII** y
@@ -48,7 +49,7 @@ Está en uso en producción y fue certificado en el ambiente de pruebas del SII.
     │   ├── SiiBoletaClient.php (API REST de boletas del SII: token, envío, estado)
     │   ├── SiiDteClient.php  (canal DTE del SII: token SOAP, DTEUpload, QueryEstUp)
     │   └── LibreDte/         (proveedores de emisor/receptor que no inventan datos)
-    ├── views/                (login y panel)
+    ├── views/                (login, encabezado con pestañas, boletas y notas de crédito)
     ├── scripts/              (utilidades de línea de comandos)
     └── var/                  (no versionado: secrets/, cache/, …)
 ```
