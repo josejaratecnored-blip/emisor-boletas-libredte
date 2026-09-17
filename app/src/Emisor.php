@@ -187,7 +187,7 @@ final class Emisor
                         'DirOrigen' => $this->empresa['direccion'],
                         'CmnaOrigen' => $this->empresa['comuna'],
                     ],
-                    'Receptor' => ['RUTRecep' => '66666666-6', 'RznSocRecep' => 'Sin RUT'],
+                    'Receptor' => ['RUTRecep' => '66666666-6', 'RznSocRecep' => 'Cliente Internet'],
                 ],
                 'Detalle' => $detalle,
             ],

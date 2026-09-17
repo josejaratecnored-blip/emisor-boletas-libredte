@@ -120,7 +120,7 @@ Errores: `401` token inválido · `422` datos inválidos · `404` no existe · `
    implementa la [API REST de boletas del SII](https://www4c.sii.cl/bolcoreinternetui/api/)
    (`apicert`/`pangal` en certificación, `api`/`rahue` en producción).
 2. **La firma de `derafu/signature` es rechazada al pedir el token** (ESTADO 11, "elemento Certificate no
-   existe"), tanto en REST como en SOAP. La semilla se firma a mano en `SiiBoletaClient::firmarSemilla()`.
+   existe"), tanto en REST como en SOAP. La semilla se firma a mano en `SiiSemilla::firmar()`.
    La firma del sobre `EnvioBOLETA` de la librería sí es aceptada.
 3. **Los proveedores "Fake" de LibreDTE sobrescriben los datos** del emisor y receptor con datos de ejemplo.
    Se reemplazan en `config/services.yaml`.
@@ -131,7 +131,7 @@ Errores: `401` token inválido · `422` datos inválidos · `404` no existe · `
 6. **Zona horaria**: se fija `America/Santiago` en PHP; si MySQL no tiene zonas con nombre, la conexión usa el
    desfase actual.
 7. **Contraseñas con caracteres especiales**: `.env` se lee línea a línea, no con `parse_ini_file`.
-8. **Carátula de boletas**: `RutReceptor` es el SII (60803000-K). Receptor genérico: 66666666-6 "Sin RUT".
+8. **Carátula de boletas**: `RutReceptor` es el SII (60803000-K). Receptor genérico: 66666666-6 "Cliente Internet".
 9. **El Resumen de Ventas Diarias (RVD) ya no es obligatorio** desde el 01-08-2022
    ([Res. Ex. SII N° 53 de 2022](https://www.sii.cl/normativa_legislacion/resoluciones/2022/reso53.pdf)).
 10. Para saber qué folios ya recibió el SII se puede usar
