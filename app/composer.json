@@ -1,0 +1,22 @@
+{
+    "name": "tecnored/emisor-boletas",
+    "type": "project",
+    "require": {
+        "php": "^8.5",
+        "libredte/libredte-lib-core": "dev-master"
+    },
+    "autoload": {
+        "psr-4": { "App\\": "src/" }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "config": {
+        "platform": { "php": "8.5.7" },
+        "sort-packages": true
+    },
+    "scripts": {
+        "post-install-cmd": "@libredte-vendor-link",
+        "post-update-cmd": "@libredte-vendor-link",
+        "libredte-vendor-link": "test -e vendor/libredte/libredte-lib-core/vendor || ln -s ../.. vendor/libredte/libredte-lib-core/vendor"
+    }
+}

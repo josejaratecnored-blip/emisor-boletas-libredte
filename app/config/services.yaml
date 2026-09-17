@@ -1,0 +1,16 @@
+# Configuración de LibreDTE para esta app: se cargan los servicios de la
+# biblioteca y se reemplazan los proveedores "Fake" de emisor/receptor, que
+# sobrescriben los datos del documento con datos de ejemplo (SASCO SpA / SII).
+imports:
+  - { resource: '../vendor/libredte/libredte-lib-core/config/services.yaml' }
+
+services:
+  libredte\lib\Core\Package\Billing\Component\TradingParties\Contract\EmisorProviderInterface:
+    class: App\LibreDte\EmisorProvider
+    arguments:
+      $emisorFactory: '@libredte\lib\Core\Package\Billing\Component\TradingParties\Contract\EmisorFactoryInterface'
+
+  libredte\lib\Core\Package\Billing\Component\TradingParties\Contract\ReceptorProviderInterface:
+    class: App\LibreDte\ReceptorProvider
+    arguments:
+      $receptorFactory: '@libredte\lib\Core\Package\Billing\Component\TradingParties\Contract\ReceptorFactoryInterface'

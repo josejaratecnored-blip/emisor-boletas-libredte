@@ -1,0 +1,5 @@
+# Datos privados y herramientas locales
+NOTAS_PRIVADAS.md
+.mcp.json
+app/config/empresa.php
+app/error_log

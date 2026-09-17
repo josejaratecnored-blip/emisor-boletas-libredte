@@ -1,0 +1,14 @@
+RewriteEngine On
+
+# Forzar HTTPS.
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Pasar el header Authorization a PHP (token de la API).
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Todo va a index.php.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [L]
+
+DirectoryIndex index.php
