@@ -158,9 +158,23 @@ Errores: `401` token inválido · `422` datos inválidos · `404` no existe ·
     carga el WSDL, por eso `SiiDteClient` hace SOAP directo. Se usa `MntBruto=1` para que los totales coincidan
     con la boleta. El SII acepta el receptor genérico 66666666-6. En certificación maullin puede autorizar
     solo 1 folio 61 por solicitud.
-11. Para saber qué folios ya recibió el SII se puede usar
-    `GET /boleta.electronica/{rut}-{dv}-39-{folio}/estado` con datos genéricos: responde `DNK` si fue recibido
-    y `FAU` si no.
+11. **Saber qué folios ya usó el SII** (útil al cambiar de software): consultar cada folio con datos genéricos
+    (receptor 66666666-6, monto 1, fecha de hoy). El SII compara esos datos con el documento, así que la
+    respuesta indica igual si lo recibió:
+    - Boletas: `GET /boleta.electronica/{rut}-{dv}-39-{folio}/estado` (API REST).
+    - Otros DTE (p. ej. notas de crédito 61): servicio SOAP `QueryEstDte` / `getEstDte`.
+
+    | Código | Significado |
+    |---|---|
+    | `DNK` | Recibido por el SII (los datos genéricos no coinciden) → **usado** |
+    | `FAU` | No recibido → **no usado** |
+    | `FAN` | Anulado |
+    | `FNA` | No autorizado (fuera de los rangos de CAF) |
+
+    "No recibido" no distingue un folio nunca emitido de uno emitido pero no enviado: confirmarlo en el software anterior.
+12. **El SII rechaza pedir un CAF nuevo si quedan folios autorizados sin usar** ("no se autoriza timbraje
+    electrónico … tiene disponible una cantidad de folios suficiente"). Hay que usarlos o anularlos en sii.cl
+    (Timbraje electrónico → Anulación de folios) y volver a solicitar. Anular folios no se puede deshacer.
 
 ## Licencia
 
