@@ -15,6 +15,7 @@
       </div>
       <p style="display:flex; gap:12px; align-items:center; flex-wrap:wrap">
         <button type="button" id="agregar">+ Agregar ítem</button>
+        <button type="button" id="agregar-envio">+ Agregar envío $3.990</button>
         <strong style="flex:1; text-align:right">Total: $<span id="total">0</span></strong>
         <button class="primario" type="submit">Emitir boleta</button>
       </p>
@@ -64,11 +65,20 @@
     });
     document.getElementById('total').textContent = total.toLocaleString('es-CL');
   }
-  document.getElementById('agregar').addEventListener('click', () => {
+  function nuevaFila() {
     const fila = plantilla.cloneNode(true);
     fila.querySelectorAll('input').forEach(i => i.value = i.name === 'cantidad[]' ? '1' : '');
     items.appendChild(fila);
-    fila.querySelector('input').focus();
+    return fila;
+  }
+  document.getElementById('agregar').addEventListener('click', () => nuevaFila().querySelector('input').focus());
+  document.getElementById('agregar-envio').addEventListener('click', () => {
+    // Si la última fila está vacía se usa esa, para no dejar una fila obligatoria en blanco.
+    const ultima = items.lastElementChild;
+    const fila = ultima.children[0].value === '' && ultima.children[2].value === '' ? ultima : nuevaFila();
+    fila.children[0].value = 'Envío';
+    fila.children[2].value = '3990';
+    recalcular();
   });
   items.addEventListener('click', ev => {
     if (ev.target.classList.contains('quitar') && items.children.length > 1) { ev.target.parentElement.remove(); recalcular(); }
