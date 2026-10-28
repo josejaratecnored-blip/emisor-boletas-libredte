@@ -177,6 +177,13 @@ Errores: `401` token inválido · `422` datos inválidos · `404` no existe ·
     electrónico … tiene disponible una cantidad de folios suficiente"). Hay que usarlos o anularlos en sii.cl
     (Timbraje electrónico → Anulación de folios) y volver a solicitar. Anular folios no se puede deshacer.
 
+13. **Los servidores de envío de boletas no entregan su certificado intermedio**: `rahue.sii.cl`
+    (producción) y `pangal.sii.cl` (certificación) presentan solo su certificado, sin el intermedio
+    *GeoTrust TLS RSA CA G1*, así que la conexión TLS falla con "unable to get local issuer
+    certificate". `config/sii-ca.pem` contiene ese intermedio y su raíz, y `SiiBoletaClient` lo usa
+    como `CURLOPT_CAINFO` en el envío. Los demás servidores (`api`, `apicert`, `palena`, `maullin`)
+    entregan la cadena completa y usan los certificados del sistema.
+
 ## Licencia
 
 Este proyecto se distribuye bajo la **GNU Affero General Public License v3.0** (ver [LICENSE](LICENSE)),

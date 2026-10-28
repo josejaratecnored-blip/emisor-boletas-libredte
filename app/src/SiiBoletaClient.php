@@ -80,6 +80,9 @@ final class SiiBoletaClient
 
         [$status, $body] = $this->request('POST', self::SERVERS[$this->ambiente]['envio'] . '/boleta.electronica.envio', [
             'auth' => true,
+            // Los servidores de envío (rahue y pangal) no entregan su certificado
+            // intermedio, así que se lo damos nosotros o la conexión TLS falla.
+            'cafile' => __DIR__ . '/../config/sii-ca.pem',
             'body' => [
                 'rutSender' => $rutSender,
                 'dvSender' => $dvSender,
@@ -128,6 +131,9 @@ final class SiiBoletaClient
         ]);
         if (isset($opts['body'])) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $opts['body']);
+        }
+        if (isset($opts['cafile'])) {
+            curl_setopt($ch, CURLOPT_CAINFO, $opts['cafile']);
         }
 
         $body = curl_exec($ch);
